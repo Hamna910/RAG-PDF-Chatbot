@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>RAG PDF Chatbot</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet">
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+<div class="card">
+
+
+    <!-- HEADER -->
+
+    <div class="header">
+
+        <div class="logo">
+            📄
+        </div>
+
+        <h1>
+            RAG PDF Chatbot
+        </h1>
+
+        <p class="subtitle">
+            Chat with your PDF using AI
+        </p>
+
+    </div>
+
+
+
+    <!-- QUESTION BAR -->
+
+    <div class="search-section">
+
+
+        <form action="/ask" method="POST" class="search-form">
+
+
+            <input
+            type="text"
+            name="question"
+            placeholder="Ask anything from your PDF..."
+            value="{{ question if question else '' }}"
+            required>
+
+
+            <button type="submit">
+                🤖 Ask AI
+            </button>
+
+
+            <a href="/clear" class="clear-btn">
+                🔄 New Chat
+            </a>
+
+
+        </form>
+
+
+    </div>
+
+
+
+
+    <!-- MAIN CONTENT -->
+
+    <div class="main-content">
+
+
+
+        <!-- LEFT DOCUMENT PANEL -->
+
+        <div class="document-panel">
+
+
+            <div class="panel-title">
+                📂 Document
+            </div>
+
+
+
+            <div class="upload-box">
+
+
+                <h3>
+                    📤 Upload PDF
+                </h3>
+
+
+                <p>
+                    Choose a PDF file
+                </p>
+
+
+                <form
+                action="/upload"
+                method="POST"
+                enctype="multipart/form-data"
+                class="upload-form">
+
+
+
+                    <label for="pdf" class="choose-btn">
+                        📄 Choose PDF
+                    </label>
+
+
+                    <input
+                    id="pdf"
+                    type="file"
+                    name="pdf"
+                    accept=".pdf"
+                    hidden
+                    required>
+
+
+                    <span id="file-name">
+    {% if uploaded_file %}
+        📄 {{ uploaded_file }}
+    {% else %}
+        Select PDF file
+    {% endif %}
+</span>
+
+
+
+                    <button type="submit">
+                        Upload
+                    </button>
+
+
+                </form>
+
+
+
+            </div>
+
+
+
+
+
+            {% if uploaded_file %}
+
+            <div class="pdf-card">
+
+
+                <h3>
+                    📄 Current PDF
+                </h3>
+
+
+                <p>
+                    {{ uploaded_file }}
+                </p>
+
+
+            </div>
+
+
+            {% endif %}
+
+
+
+
+
+
+            {% if message %}
+
+            <div class="success">
+
+                {{ message | safe }}
+
+            </div>
+
+            {% endif %}
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <!-- RIGHT CHAT PANEL -->
+
+
+        <div class="chat-panel">
+
+
+            <div class="panel-title">
+
+                💬 Chat
+
+            </div>
+
+
+
+
+            {% if chat_history %}
+
+
+                {% for chat in chat_history %}
+
+
+
+                <div class="chat-item">
+
+
+                    <div class="user-msg">
+
+
+                        <strong>
+                            👤 You
+                        </strong>
+
+
+                        <p>
+                            {{ chat.question }}
+                        </p>
+
+
+                    </div>
+
+
+
+
+
+                    <div class="ai-msg">
+
+
+                        <strong>
+                            🤖 AI
+                        </strong>
+
+
+                        <p>
+                            {{ chat.answer }}
+                        </p>
+
+
+                    </div>
+
+
+
+                </div>
+
+
+
+                {% endfor %}
+
+
+
+            {% else %}
+
+
+
+            <div class="empty-chat">
+
+                🤖 Upload PDF and start asking questions...
+
+            </div>
+
+
+
+            {% endif %}
+
+
+
+        </div>
+
+
+
+
+    </div>
+
+
+
+
+
+    <!-- FOOTER -->
+
+
+    <div class="footer">
+
+        Built with Flask • RAG • Groq LLM
+
+    </div>
+
+
+
+</div>
+
+
+</div>
+
+
+
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+
+</body>
+
+</html>
