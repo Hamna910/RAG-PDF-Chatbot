@@ -1,25 +1,30 @@
 from modules.embeddings import create_embeddings
-from modules.vector_store import search_vector_store
+from modules.pinecone_db import search_embeddings
 
 
 def retrieve_answer(query, vector_store, chunks):
 
-    # Question ka embedding banana
-    query_embedding = create_embeddings([query])
+    # Question ka embedding banao
+    query_embedding = create_embeddings([query])[0]
 
-    # FAISS search
-    indexes, distances = search_vector_store(
-        vector_store,
+    # Pinecone search
+    results = search_embeddings(
         query_embedding,
-        k=1
+        top_k=3
     )
 
-    # Best matching chunk
-    best_chunk = chunks[indexes[0][0]]
+    # Agar kuch na mile
+    if not results.matches:
+        return None
 
-    return best_chunk
+    # Best matching chunks
+    context = ""
+
+    for match in results.matches:
+        context += match.metadata["text"] + "\n\n"
+
+    return context
 
 
 if __name__ == "__main__":
-
-    print("Retriever module ready 🚀")
+    print("Retriever Ready ✅")

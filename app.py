@@ -1,5 +1,6 @@
 import os
 
+from modules.pinecone_db import clear_index
 from flask import Flask, render_template, request
 
 from modules.loader import load_pdf
@@ -35,24 +36,28 @@ def process_pdf(pdf_path):
 
     print("PDF Loaded ✅")
 
-
     # Chunking
     chunks = chunk_text(text)
 
     print("Chunks:", len(chunks))
-
 
     # Embeddings
     embeddings = create_embeddings(chunks)
 
     print("Embeddings Ready ✅")
 
+    # Clear previous vectors from Pinecone
+    # clear_index()
 
-    # Vector Store
-    vector_store = create_vector_store(embeddings)
+    print("Old Pinecone vectors deleted ✅")
+
+    # Upload new vectors to Pinecone
+    vector_store = create_vector_store(
+        chunks,
+        embeddings
+    )
 
     print("Vector Store Ready ✅")
-
 
 
 

@@ -15,22 +15,29 @@ client = Groq(
 
 def generate_answer(context, question):
 
+    # Agar Pinecone se koi context na mile
+    if context is None or context.strip() == "":
+        return "I could not find this information in the uploaded PDF."
+
     response = client.chat.completions.create(
 
         model="llama-3.1-8b-instant",
 
         messages=[
+
             {
                 "role": "system",
                 "content": """
-You are a helpful AI assistant for a PDF Question Answering system.
+You are a helpful AI assistant for a PDF Question Answering System.
 
-Instructions:
-- Use the provided context as the main source.
-- Explain answers clearly with useful details.
-- Do not add unrelated information.
-- If the answer is not available in the context, say:
-"I could not find this information in the document."
+Rules:
+
+1. Answer ONLY using the provided context.
+2. Never use your own knowledge.
+3. If the answer is missing from the context, reply exactly:
+"I could not find this information in the uploaded PDF."
+4. Keep answers clear and easy to understand.
+5. Do not guess or hallucinate.
 """
             },
 
@@ -46,9 +53,11 @@ Question:
 Answer:
 """
             }
+
         ],
 
-        temperature=0.3
+        temperature=0
+
     )
 
     return response.choices[0].message.content
