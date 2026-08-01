@@ -2,29 +2,32 @@ from modules.embeddings import create_embeddings
 from modules.pinecone_db import search_embeddings
 
 
-def retrieve_answer(query, vector_store, chunks):
+def retrieve_answer(query, vector_store, chunks, user_id):
 
-    # Question ka embedding banao
-    query_embedding = create_embeddings([query])[0]
 
-    # Pinecone search
+    query_embedding = create_embeddings(
+        [query]
+    )[0]
+
+
     results = search_embeddings(
         query_embedding,
+        user_id,
         top_k=3
     )
 
-    # Agar kuch na mile
+
     if not results.matches:
+
         return None
 
-    # Best matching chunks
+
     context = ""
 
+
     for match in results.matches:
+
         context += match.metadata["text"] + "\n\n"
 
+
     return context
-
-
-if __name__ == "__main__":
-    print("Retriever Ready ✅")

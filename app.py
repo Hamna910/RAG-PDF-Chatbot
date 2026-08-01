@@ -1,7 +1,7 @@
 import os
+import uuid
 
-from modules.pinecone_db import clear_index
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 
 from modules.loader import load_pdf
 from modules.chunker import chunk_text
@@ -13,6 +13,8 @@ from modules.llm import generate_answer
 
 app = Flask(__name__)
 
+app.secret_key = "rag-pdf-secret-key"
+
 
 UPLOAD_FOLDER = "uploads"
 
@@ -21,43 +23,50 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
-# Global variables
-chunks = []
-vector_store = None
-uploaded_file_name = None
-chat_history = []
+# Store data per user session
+user_data = {}
 
 
 
-def process_pdf(pdf_path):
+def get_user_id():
 
-    global chunks, vector_store
+    if "user_id" not in session:
+        session["user_id"] = str(uuid.uuid4())
 
-    # Load PDF
+    return session["user_id"]
+
+
+
+def process_pdf(pdf_path, user_id):
+
     text, scanned_pages = load_pdf(pdf_path)
 
     print("PDF Loaded ✅")
 
-    # Chunking
+
     chunks = chunk_text(text)
 
     print("Chunks:", len(chunks))
 
-    # Embeddings
+
     embeddings = create_embeddings(chunks)
 
     print("Embeddings Ready ✅")
 
-    # Clear previous vectors from Pinecone
-    # clear_index()
 
-    print("Old Pinecone vectors deleted ✅")
-
-    # Upload new vectors to Pinecone
     vector_store = create_vector_store(
         chunks,
-        embeddings
+        embeddings,
+        user_id
     )
+
+
+    user_data[user_id] = {
+        "chunks": chunks,
+        "vector_store": vector_store,
+        "uploaded_file": os.path.basename(pdf_path)
+    }
+
 
     print("Vector Store Ready ✅")
 
@@ -66,22 +75,34 @@ def process_pdf(pdf_path):
 @app.route("/")
 def home():
 
-   return render_template(
-    "index.html",
-    message=None,
-    answer=None,
-    chat_history=chat_history
-)
+    user_id = get_user_id()
+
+    data = user_data.get(user_id, {})
+
+
+    return render_template(
+        "index.html",
+        message=None,
+        answer=None,
+        uploaded_file=data.get("uploaded_file"),
+        chat_history=session.get("chat_history", [])
+    )
+
+
+
 @app.route("/upload", methods=["POST"])
 def upload_pdf():
 
-    global uploaded_file_name
-
     try:
+
+        user_id = get_user_id()
+
 
         file = request.files["pdf"]
 
+
         if file.filename == "":
+
             return render_template(
                 "index.html",
                 message="Please select a PDF file ❌",
@@ -89,25 +110,30 @@ def upload_pdf():
             )
 
 
-        uploaded_file_name = file.filename
-
-
         path = os.path.join(
             UPLOAD_FOLDER,
             file.filename
         )
 
+
         file.save(path)
 
 
-        process_pdf(path)
+        process_pdf(
+            path,
+            user_id
+        )
+
+
+        session["chat_history"] = []
 
 
         return render_template(
             "index.html",
-            message=f"PDF processed successfully ✅ <br> File: {uploaded_file_name}",
+            message=f"PDF processed successfully ✅ <br> File: {file.filename}",
             answer=None,
-            uploaded_file=uploaded_file_name
+            uploaded_file=file.filename,
+            chat_history=[]
         )
 
 
@@ -120,18 +146,24 @@ def upload_pdf():
             message="PDF processing failed ❌",
             answer=None
         )
-    
+
+
+
 @app.route("/ask", methods=["POST"])
 def ask_question():
 
-    global vector_store
-
     try:
+
+        user_id = get_user_id()
+
 
         question = request.form["question"]
 
 
-        if vector_store is None:
+        data = user_data.get(user_id)
+
+
+        if data is None:
 
             return render_template(
                 "index.html",
@@ -142,8 +174,9 @@ def ask_question():
 
         context = retrieve_answer(
             question,
-            vector_store,
-            chunks
+            data["vector_store"],
+            data["chunks"],
+             user_id
         )
 
 
@@ -151,25 +184,38 @@ def ask_question():
             context,
             question
         )
-        chat_history.append({
-    "question": question,
-    "answer": answer
-})
+
+
+        history = session.get(
+            "chat_history",
+            []
+        )
+
+
+        history.append({
+            "question": question,
+            "answer": answer
+        })
+
+
+        session["chat_history"] = history
+
 
 
         return render_template(
-    "index.html",
-    message=None,
-    answer=answer,
-    question=question,
-    uploaded_file=uploaded_file_name,
-    chat_history=chat_history
-)
+            "index.html",
+            message=None,
+            answer=answer,
+            question=question,
+            uploaded_file=data.get("uploaded_file"),
+            chat_history=history
+        )
 
 
     except Exception as e:
 
         print("Question Error:", e)
+
 
         return render_template(
             "index.html",
@@ -177,30 +223,32 @@ def ask_question():
             answer=None
         )
 
+
+
 @app.route("/clear")
 def clear_chat():
 
-    global chat_history, uploaded_file_name, chunks, vector_store
+    user_id = get_user_id()
 
-    chat_history.clear()
 
-    uploaded_file_name = None
-    chunks = []
-    vector_store = None
+    session.clear()
+
+
+    if user_id in user_data:
+
+        del user_data[user_id]
 
 
     return render_template(
         "index.html",
         message="New chat started ✅",
         answer=None,
-        question="",
         uploaded_file=None,
-        chat_history=chat_history
+        chat_history=[]
     )
+
+
 
 if __name__ == "__main__":
 
     app.run(debug=True)
-
-
-
